@@ -54,7 +54,7 @@ fun StatusBadge(status: LogStatus, modifier: Modifier = Modifier) {
             .clip(RoundedCornerShape(8.dp))
             .background(bgColor)
             .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertiment,
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Icon(
