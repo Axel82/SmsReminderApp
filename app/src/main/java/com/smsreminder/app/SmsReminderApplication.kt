@@ -23,17 +23,13 @@ class SmsReminderApplication : Application() {
         super.onCreate()
         instance = this
 
+        reminderRepository = ReminderRepository(this)
+        historyRepository = HistoryRepository(this)
+        settingsRepository = SettingsRepository(this)
+        alarmScheduler = AlarmScheduler(this)
+
         try {
-            // Initialize notification channel
             NotificationHelper.createNotificationChannel(this)
-
-            // Initialize repositories
-            reminderRepository = ReminderRepository(this)
-            historyRepository = HistoryRepository(this)
-            settingsRepository = SettingsRepository(this)
-            alarmScheduler = AlarmScheduler(this)
-
-            // Reschedule alarms if global service is enabled
             if (settingsRepository.getSettings().isGlobalEnabled) {
                 alarmScheduler.rescheduleAllActiveReminders(reminderRepository.getAllReminders())
             }
