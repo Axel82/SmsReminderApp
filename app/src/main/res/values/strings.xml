@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Rappels SMS</string>
+    <string name="channel_name">Rappels de SMS</string>
+    <string name="channel_description">Notifications interactives pour envoyer vos SMS programmés</string>
+    <string name="notification_title">Rappel SMS programmé</string>
+    <string name="action_send">Envoyer</string>
+    <string name="action_cancel">Annuler</string>
+    <string name="action_open_app">Ouvrir</string>
+</resources>
