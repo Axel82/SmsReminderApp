@@ -30,19 +30,20 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
 
       - name: Build Debug & Release APKs
-        run: ./gradlew assembleDebug assembleRelease --stacktrace
+        run: gradle assembleDebug assembleRelease --stacktrace
 
-      - name: Rename APKs with timestamp/version
+      - name: Prepare APK outputs
         run: |
           mkdir -p build-output
           cp app/build/outputs/apk/debug/app-debug.apk build-output/SmsReminder-Debug.apk || true
-          cp app/build/outputs/apk/release/app-release.apk build-output/SmsReminder-Release.apk || true
+          cp app/build/outputs/apk/release/app-release-unsigned.apk build-output/SmsReminder-Release.apk || cp app/build/outputs/apk/release/app-release.apk build-output/SmsReminder-Release.apk || true
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
