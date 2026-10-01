@@ -1,6 +1,5 @@
 package com.smsreminder.app.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,27 +15,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AlarmOff
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -64,7 +57,8 @@ fun RemindersScreen(
     onToggleReminder: (String, Boolean) -> Unit,
     onAddReminderClicked: () -> Unit,
     onEditReminderClicked: (Reminder) -> Unit,
-    onDeleteReminderClicked: (String) -> Unit
+    onDeleteReminderClicked: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var reminderToDelete by remember { mutableStateOf<Reminder?>(null) }
@@ -82,106 +76,89 @@ fun RemindersScreen(
         }
     }
 
-    Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddReminderClicked,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = CircleShape
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Ajouter un rappel"
-                )
-            }
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp)
-        ) {
-            Spacer(modifier = Modifier.height(16.dp))
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
+    ) {
+        Spacer(modifier = Modifier.height(16.dp))
 
-            // Master Switch
-            MasterSwitchCard(
-                isEnabled = isGlobalEnabled,
-                onToggle = onToggleGlobal
+        // Master Switch
+        MasterSwitchCard(
+            isEnabled = isGlobalEnabled,
+            onToggle = onToggleGlobal
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Search Bar
+        if (reminders.isNotEmpty()) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Rechercher un rappel, destinataire...") },
+                leadingIcon = {
+                    Icon(imageVector = Icons.Default.Search, contentDescription = null)
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp)
             )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Search Bar
-            if (reminders.isNotEmpty()) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Rechercher un rappel, destinataire...") },
-                    leadingIcon = {
-                        Icon(imageVector = Icons.Default.Search, contentDescription = null)
-                    },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // Reminders List / Empty State
-            if (filteredReminders.isEmpty()) {
-                if (reminders.isEmpty()) {
-                    EmptyState(
-                        icon = Icons.Default.AlarmOff,
-                        title = "Aucun rappel configuré",
-                        subtitle = "Créez votre premier rappel automatique pour envoyer des SMS à vos proches ou clients.",
-                        actionButton = {
-                            TextButton(onClick = onAddReminderClicked) {
-                                Text("+ Créer un rappel maintenant")
-                            }
-                        }
-                    )
-                } else {
-                    EmptyState(
-                        icon = Icons.Default.Search,
-                        title = "Aucun résultat",
-                        subtitle = "Aucun rappel ne correspond à votre recherche '$searchQuery'."
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Vos rappels (${filteredReminders.size})",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
+        // Reminders List / Empty State
+        if (filteredReminders.isEmpty()) {
+            if (reminders.isEmpty()) {
+                EmptyState(
+                    icon = Icons.Default.AlarmOff,
+                    title = "Aucun rappel configuré",
+                    subtitle = "Créez votre premier rappel automatique pour envoyer des SMS à vos contacts.",
+                    actionButton = {
+                        TextButton(onClick = onAddReminderClicked) {
+                            Text("+ Créer un rappel maintenant")
                         }
                     }
-
-                    items(filteredReminders, key = { it.id }) { reminder ->
-                        ReminderCard(
-                            reminder = reminder,
-                            isGlobalEnabled = isGlobalEnabled,
-                            onToggle = { isChecked -> onToggleReminder(reminder.id, isChecked) },
-                            onEdit = { onEditReminderClicked(reminder) },
-                            onDelete = { reminderToDelete = reminder }
+                )
+            } else {
+                EmptyState(
+                    icon = Icons.Default.Search,
+                    title = "Aucun résultat",
+                    subtitle = "Aucun rappel ne correspond à votre recherche '$searchQuery'."
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Vos rappels (${filteredReminders.size})",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     }
+                }
 
-                    item {
-                        Spacer(modifier = Modifier.height(72.dp)) // Space for FAB
-                    }
+                items(filteredReminders, key = { it.id }) { reminder ->
+                    ReminderCard(
+                        reminder = reminder,
+                        isGlobalEnabled = isGlobalEnabled,
+                        onToggle = { isChecked -> onToggleReminder(reminder.id, isChecked) },
+                        onEdit = { onEditReminderClicked(reminder) },
+                        onDelete = { reminderToDelete = reminder }
+                    )
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(80.dp)) // Space for FAB
                 }
             }
         }

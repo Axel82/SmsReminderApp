@@ -26,32 +26,23 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Contacts
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -74,217 +65,223 @@ fun SettingsScreen(
     hasNotificationPermission: Boolean,
     onRequestSmsPermission: () -> Unit,
     onRequestContactPermission: () -> Unit,
-    onRequestNotificationPermission: () -> Unit
+    onRequestNotificationPermission: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
 
-    // Check battery optimization status
-    val powerManager = remember { context.getSystemService(Context.POWER_SERVICE) as PowerManager }
+    // Check battery optimization status safely
+    val powerManager = remember { context.getSystemService(Context.POWER_SERVICE) as? PowerManager }
     val isIgnoringBatteryOptimizations = remember(settings) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            powerManager.isIgnoringBatteryOptimizations(context.packageName)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && powerManager != null) {
+            try {
+                powerManager.isIgnoringBatteryOptimizations(context.packageName)
+            } catch (e: Exception) {
+                true
+            }
         } else {
             true
         }
     }
 
-    Scaffold { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            Spacer(modifier = Modifier.height(16.dp))
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = "Réglages & Système",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+        Text(
+            text = "Réglages & Système",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
 
-            Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-            // Global Master Switch
-            MasterSwitchCard(
-                isEnabled = settings.isGlobalEnabled,
-                onToggle = { isEnabled ->
-                    onUpdateSettings(settings.copy(isGlobalEnabled = isEnabled))
-                }
-            )
+        // Global Master Switch
+        MasterSwitchCard(
+            isEnabled = settings.isGlobalEnabled,
+            onToggle = { isEnabled ->
+                onUpdateSettings(settings.copy(isGlobalEnabled = isEnabled))
+            }
+        )
 
-            Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-            // Battery Optimization Exemption Card
-            BatteryOptimizationCard(
-                isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
-                onRequestExemption = {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        // Battery Optimization Exemption Card
+        BatteryOptimizationCard(
+            isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
+            onRequestExemption = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    try {
+                        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                            data = Uri.parse("package:${context.packageName}")
+                        }
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
                         try {
-                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                data = Uri.parse("package:${context.packageName}")
-                            }
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
                             val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
                             context.startActivity(intent)
+                        } catch (ex: Exception) {
+                            // Ignore if not supported on OEM
                         }
                     }
                 }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Permissions Status Section
-            Text(
-                text = "Autorisations requises",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    PermissionRow(
-                        title = "Notifications",
-                        description = "Pour afficher les alertes de rappel interactives",
-                        icon = Icons.Default.Notifications,
-                        isGranted = hasNotificationPermission,
-                        onRequest = onRequestNotificationPermission
-                    )
-
-                    PermissionRow(
-                        title = "Contacts",
-                        description = "Pour sélectionner un numéro dans votre répertoire",
-                        icon = Icons.Default.Contacts,
-                        isGranted = hasContactPermission,
-                        onRequest = onRequestContactPermission
-                    )
-
-                    PermissionRow(
-                        title = "SMS",
-                        description = "Pour l'envoi direct de SMS si activé",
-                        icon = Icons.Default.Sms,
-                        isGranted = hasSmsPermission,
-                        onRequest = onRequestSmsPermission
-                    )
-                }
             }
+        )
 
-            Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-            // Options d'envoi SMS
-            Text(
-                text = "Options d'envoi des SMS",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+        // Permissions Status Section
+        Text(
+            text = "Autorisations requises",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(modifier = Modifier.height(8.dp))
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Envoi direct en arrière-plan",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = if (settings.sendDirectlyViaSmsManager)
-                                    "Le SMS partira immédiatement lors du clic 'Envoyer' sans ouvrir l'application SMS."
-                                else
-                                    "Le clic 'Envoyer' ouvre l'application SMS avec destinataire et texte préremplis.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = settings.sendDirectlyViaSmsManager,
-                            onCheckedChange = { isChecked ->
-                                onUpdateSettings(settings.copy(sendDirectlyViaSmsManager = isChecked))
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Test Notification Button
-            Button(
-                onClick = {
-                    val sampleReminder = Reminder(
-                        title = "Rappel de démonstration",
-                        daysOfWeek = setOf(DayOfWeek.MONDAY),
-                        hour = 12,
-                        minute = 0,
-                        messageBody = "Bonjour ! N'oubliez pas notre rendez-vous demain.",
-                        recipientName = "Alice Dupont",
-                        recipientPhone = "06 12 34 56 78"
-                    )
-                    NotificationHelper.showReminderNotification(context, sampleReminder)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(imageVector = Icons.Default.NotificationsActive, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Envoyer une notification test")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Local JSON Storage Info Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                PermissionRow(
+                    title = "Notifications",
+                    description = "Pour afficher les alertes de rappel interactives",
+                    icon = Icons.Default.Notifications,
+                    isGranted = hasNotificationPermission,
+                    onRequest = onRequestNotificationPermission
                 )
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Storage,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+
+                PermissionRow(
+                    title = "Contacts",
+                    description = "Pour sélectionner un numéro dans votre répertoire",
+                    icon = Icons.Default.Contacts,
+                    isGranted = hasContactPermission,
+                    onRequest = onRequestContactPermission
+                )
+
+                PermissionRow(
+                    title = "SMS",
+                    description = "Pour l'envoi direct de SMS si activé",
+                    icon = Icons.Default.Sms,
+                    isGranted = hasSmsPermission,
+                    onRequest = onRequestSmsPermission
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Options d'envoi SMS
+        Text(
+            text = "Options d'envoi des SMS",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Stockage 100 % local (JSON)",
+                            text = "Envoi direct en arrière-plan",
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = if (settings.sendDirectlyViaSmsManager)
+                                "Le SMS partira immédiatement lors du clic 'Envoyer' sans ouvrir l'application SMS."
+                            else
+                                "Le clic 'Envoyer' ouvre l'application SMS avec destinataire et texte préremplis.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Fichiers : reminders.json, history_logs.json, settings.json\nAucune donnée n'est transmise vers des serveurs tiers.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Switch(
+                        checked = settings.sendDirectlyViaSmsManager,
+                        onCheckedChange = { isChecked ->
+                            onUpdateSettings(settings.copy(sendDirectlyViaSmsManager = isChecked))
+                        }
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Test Notification Button
+        Button(
+            onClick = {
+                val sampleReminder = Reminder(
+                    title = "Rappel de démonstration",
+                    daysOfWeek = setOf(DayOfWeek.MONDAY),
+                    hour = 12,
+                    minute = 0,
+                    messageBody = "Bonjour ! N'oubliez pas notre rendez-vous demain.",
+                    recipientName = "Alice Dupont",
+                    recipientPhone = "06 12 34 56 78"
+                )
+                NotificationHelper.showReminderNotification(context, sampleReminder)
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(imageVector = Icons.Default.NotificationsActive, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Envoyer une notification test")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Local JSON Storage Info Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            )
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Storage,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Stockage 100 % local (JSON)",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Fichiers : reminders.json, history_logs.json, settings.json\nAucune donnée n'est transmise vers des serveurs tiers.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
@@ -326,7 +323,7 @@ private fun BatteryOptimizationCard(
                 text = if (isIgnoringBatteryOptimizations) {
                     "✅ L'application est exemptée d'optimisation de batterie. Les alarmes et rappels en arrière-plan s'exécuteront à la seconde exacte même en veille prolongée."
                 } else {
-                    "⚠️ L'optimisation de batterie Android est active. Elle peut retarder ou tuer les alertes en arrière-plan lorsque le téléphone est en veille."
+                    "⚠️ L'optimisation de batterie Android est active. Elle peut retarder les alertes lorsque le téléphone est en veille."
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant

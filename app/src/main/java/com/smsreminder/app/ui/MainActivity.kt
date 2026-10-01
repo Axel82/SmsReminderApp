@@ -10,10 +10,17 @@ import android.provider.ContactsContract
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -37,7 +44,7 @@ import com.smsreminder.app.ui.theme.SmsReminderAppTheme
 
 class MainActivity : ComponentActivity() {
 
-    private val app by lazy { application as SmsReminderApplication }
+    private val app by lazy { applicationContext as SmsReminderApplication }
 
     // State for contact picker callback
     private var onContactPickedCallback: ((name: String, phone: String) -> Unit)? = null
@@ -78,6 +85,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         // Request notifications permission on Android 13+ automatically if not granted
@@ -97,7 +105,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun launchContactPickerInternal() {
-        contactPickerLauncher.launch(null)
+        try {
+            contactPickerLauncher.launch(null)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Impossible d'ouvrir les contacts: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
     fun requestContactPicker(onPicked: (name: String, phone: String) -> Unit) {
@@ -209,9 +221,33 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+            },
+            floatingActionButton = {
+                if (currentScreen == Screen.Reminders) {
+                    FloatingActionButton(
+                        onClick = {
+                            reminderToEdit = null
+                            pickedName = null
+                            pickedPhone = null
+                            showAddEditDialog = true
+                        },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        shape = CircleShape
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Ajouter un rappel"
+                        )
+                    }
+                }
             }
         ) { innerPadding ->
-            androidx.compose.foundation.layout.Box(modifier = Modifier.padding(innerPadding)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
                 when (currentScreen) {
                     Screen.Reminders -> {
                         RemindersScreen(

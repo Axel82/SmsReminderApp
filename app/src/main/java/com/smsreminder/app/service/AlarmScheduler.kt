@@ -13,7 +13,7 @@ import java.util.Calendar
 
 class AlarmScheduler(private val context: Context) {
 
-    private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    private val alarmManager: AlarmManager? = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
 
     companion object {
         private const val TAG = "AlarmScheduler"
@@ -43,6 +43,11 @@ class AlarmScheduler(private val context: Context) {
         )
 
         try {
+            if (alarmManager == null) {
+                Log.e(TAG, "AlarmManager is not available on this device.")
+                return
+            }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 if (alarmManager.canScheduleExactAlarms()) {
                     alarmManager.setExactAndAllowWhileIdle(
@@ -65,23 +70,27 @@ class AlarmScheduler(private val context: Context) {
                 )
             }
             Log.d(TAG, "Scheduled reminder '${reminder.title}' for epoch: $nextTriggerTime")
-        } catch (e: SecurityException) {
-            Log.e(TAG, "SecurityException while scheduling exact alarm: ${e.message}", e)
+        } catch (e: Throwable) {
+            Log.e(TAG, "Error while scheduling alarm for reminder ${reminder.id}: ${e.message}", e)
         }
     }
 
     fun cancelReminder(reminder: Reminder) {
-        val intent = Intent(context, ReminderAlarmReceiver::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            reminder.id.hashCode(),
-            intent,
-            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
-        )
-        if (pendingIntent != null) {
-            alarmManager.cancel(pendingIntent)
-            pendingIntent.cancel()
-            Log.d(TAG, "Cancelled alarm for reminder ${reminder.id}")
+        try {
+            val intent = Intent(context, ReminderAlarmReceiver::class.java)
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                reminder.id.hashCode(),
+                intent,
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+            )
+            if (pendingIntent != null && alarmManager != null) {
+                alarmManager.cancel(pendingIntent)
+                pendingIntent.cancel()
+                Log.d(TAG, "Cancelled alarm for reminder ${reminder.id}")
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "Error cancelling reminder ${reminder.id}: ${e.message}", e)
         }
     }
 

@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
@@ -26,12 +25,10 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -53,7 +50,8 @@ import com.smsreminder.app.ui.components.StatusBadge
 fun HistoryScreen(
     logs: List<HistoryLog>,
     onClearAllLogs: () -> Unit,
-    onDeleteLog: (String) -> Unit
+    onDeleteLog: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedStatusFilter by remember { mutableStateOf<LogStatus?>(null) }
@@ -70,121 +68,118 @@ fun HistoryScreen(
         }
     }
 
-    Scaffold { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp)
-        ) {
-            Spacer(modifier = Modifier.height(16.dp))
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
+    ) {
+        Spacer(modifier = Modifier.height(16.dp))
 
-            // Header with Clear button
+        // Header with Clear button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "Journal des envois",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "${logs.size} événements enregistrés en local (JSON)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (logs.isNotEmpty()) {
+                IconButton(onClick = { showClearConfirmDialog = true }) {
+                    Icon(
+                        imageVector = Icons.Default.DeleteSweep,
+                        contentDescription = "Vider le journal",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Search Bar & Filter Chips
+        if (logs.isNotEmpty()) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Rechercher dans l'historique...") },
+                leadingIcon = {
+                    Icon(imageVector = Icons.Default.Search, contentDescription = null)
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column {
-                    Text(
-                        text = "Journal des envois",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "${logs.size} événements enregistrés en local (JSON)",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                if (logs.isNotEmpty()) {
-                    IconButton(onClick = { showClearConfirmDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteSweep,
-                            contentDescription = "Vider le journal",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
+                FilterChip(
+                    selected = selectedStatusFilter == null,
+                    onClick = { selectedStatusFilter = null },
+                    label = { Text("Tous") },
+                    shape = RoundedCornerShape(10.dp)
+                )
+                FilterChip(
+                    selected = selectedStatusFilter == LogStatus.SENT,
+                    onClick = {
+                        selectedStatusFilter = if (selectedStatusFilter == LogStatus.SENT) null else LogStatus.SENT
+                    },
+                    label = { Text("Envoyés") },
+                    shape = RoundedCornerShape(10.dp)
+                )
+                FilterChip(
+                    selected = selectedStatusFilter == LogStatus.CANCELLED,
+                    onClick = {
+                        selectedStatusFilter = if (selectedStatusFilter == LogStatus.CANCELLED) null else LogStatus.CANCELLED
+                    },
+                    label = { Text("Annulés") },
+                    shape = RoundedCornerShape(10.dp)
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
+        }
 
-            // Search Bar & Filter Chips
-            if (logs.isNotEmpty()) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Rechercher dans l'historique...") },
-                    leadingIcon = {
-                        Icon(imageVector = Icons.Default.Search, contentDescription = null)
-                    },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp)
+        // History Log List
+        if (filteredLogs.isEmpty()) {
+            if (logs.isEmpty()) {
+                EmptyState(
+                    icon = Icons.Default.History,
+                    title = "Journal vide",
+                    subtitle = "Les SMS envoyés ou annulés depuis les notifications de rappel apparaîtront ici."
                 )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = selectedStatusFilter == null,
-                        onClick = { selectedStatusFilter = null },
-                        label = { Text("Tous") },
-                        shape = RoundedCornerShape(10.dp)
-                    )
-                    FilterChip(
-                        selected = selectedStatusFilter == LogStatus.SENT,
-                        onClick = {
-                            selectedStatusFilter = if (selectedStatusFilter == LogStatus.SENT) null else LogStatus.SENT
-                        },
-                        label = { Text("Envoyés") },
-                        shape = RoundedCornerShape(10.dp)
-                    )
-                    FilterChip(
-                        selected = selectedStatusFilter == LogStatus.CANCELLED,
-                        onClick = {
-                            selectedStatusFilter = if (selectedStatusFilter == LogStatus.CANCELLED) null else LogStatus.CANCELLED
-                        },
-                        label = { Text("Annulés") },
-                        shape = RoundedCornerShape(10.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // History Log List
-            if (filteredLogs.isEmpty()) {
-                if (logs.isEmpty()) {
-                    EmptyState(
-                        icon = Icons.Default.History,
-                        title = "Journal vide",
-                        subtitle = "Les SMS envoyés ou annulés depuis les notifications de rappel apparaîtront ici."
-                    )
-                } else {
-                    EmptyState(
-                        icon = Icons.Default.Search,
-                        title = "Aucun résultat",
-                        subtitle = "Aucun événement ne correspond à vos filtres de recherche."
-                    )
-                }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(filteredLogs, key = { it.id }) { log ->
-                        HistoryLogCard(log = log)
-                    }
-                    item {
-                        Spacer(modifier = Modifier.height(24.dp))
-                    }
+                EmptyState(
+                    icon = Icons.Default.Search,
+                    title = "Aucun résultat",
+                    subtitle = "Aucun événement ne correspond à vos filtres de recherche."
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(filteredLogs, key = { it.id }) { log ->
+                    HistoryLogCard(log = log)
+                }
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
             }
         }

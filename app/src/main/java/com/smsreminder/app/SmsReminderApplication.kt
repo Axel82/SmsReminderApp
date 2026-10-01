@@ -1,6 +1,7 @@
 package com.smsreminder.app
 
 import android.app.Application
+import android.util.Log
 import com.smsreminder.app.data.HistoryRepository
 import com.smsreminder.app.data.ReminderRepository
 import com.smsreminder.app.data.SettingsRepository
@@ -22,18 +23,22 @@ class SmsReminderApplication : Application() {
         super.onCreate()
         instance = this
 
-        // Initialize notification channel
-        NotificationHelper.createNotificationChannel(this)
+        try {
+            // Initialize notification channel
+            NotificationHelper.createNotificationChannel(this)
 
-        // Initialize repositories
-        reminderRepository = ReminderRepository(this)
-        historyRepository = HistoryRepository(this)
-        settingsRepository = SettingsRepository(this)
-        alarmScheduler = AlarmScheduler(this)
+            // Initialize repositories
+            reminderRepository = ReminderRepository(this)
+            historyRepository = HistoryRepository(this)
+            settingsRepository = SettingsRepository(this)
+            alarmScheduler = AlarmScheduler(this)
 
-        // Reschedule alarms if global service is enabled
-        if (settingsRepository.getSettings().isGlobalEnabled) {
-            alarmScheduler.rescheduleAllActiveReminders(reminderRepository.getAllReminders())
+            // Reschedule alarms if global service is enabled
+            if (settingsRepository.getSettings().isGlobalEnabled) {
+                alarmScheduler.rescheduleAllActiveReminders(reminderRepository.getAllReminders())
+            }
+        } catch (e: Throwable) {
+            Log.e("SmsReminderApp", "Error during Application onCreate: ${e.message}", e)
         }
     }
 
