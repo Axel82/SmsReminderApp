@@ -19,6 +19,9 @@ class SmsReminderApplication : Application() {
     lateinit var alarmScheduler: AlarmScheduler
         private set
 
+    @Volatile
+    private var backgroundWorkReady = false
+
     override fun onCreate() {
         super.onCreate()
         instance = this
@@ -27,14 +30,26 @@ class SmsReminderApplication : Application() {
         historyRepository = HistoryRepository(this)
         settingsRepository = SettingsRepository(this)
         alarmScheduler = AlarmScheduler(this)
+    }
 
-        try {
-            NotificationHelper.createNotificationChannel(this)
-            if (settingsRepository.getSettings().isGlobalEnabled) {
-                alarmScheduler.rescheduleAllActiveReminders(reminderRepository.getAllReminders())
+    /**
+     * Channel + alarms must not run before the UI is visible.
+     * Creating a HIGH notification channel or scheduling exact alarms at process
+     * start can open a system screen and send MainActivity to the background.
+     */
+    fun initializeBackgroundWorkIfNeeded() {
+        if (backgroundWorkReady) return
+        synchronized(this) {
+            if (backgroundWorkReady) return
+            try {
+                NotificationHelper.createNotificationChannel(this)
+                if (settingsRepository.getSettings().isGlobalEnabled) {
+                    alarmScheduler.rescheduleAllActiveReminders(reminderRepository.getAllReminders())
+                }
+            } catch (e: Throwable) {
+                Log.e("SmsReminderApp", "Error initializing background work: ${e.message}", e)
             }
-        } catch (e: Throwable) {
-            Log.e("SmsReminderApp", "Error during Application onCreate: ${e.message}", e)
+            backgroundWorkReady = true
         }
     }
 
